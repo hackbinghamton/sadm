@@ -1,0 +1,63 @@
+# This Compose file runs Hackathon Manager in a production environment.
+# Also see the development environment:
+# https://github.com/hackbinghamton/hackathon-manager/blob/main/compose.yaml
+
+services:
+  db:
+    container_name: "db"
+    image: "hackbinghamton/postgres"
+    restart: "always"
+    env_file: ".env"
+    volumes:
+      - "db_data:/var/lib/postgresql/data"
+
+  # TODO make this work
+  dbadmin:
+    container_name: "dbadmin"
+    depends_on:
+      - "db"
+    image: "adminer:4.8.1"
+    restart: "always"
+
+  # Unlike the `prep` service in the development Compose file,
+  # this one *does* directly correspond to the `prep` subproject.
+  prep:
+    container_name: "prep"
+    depends_on:
+      - "db"
+    image: "hackbinghamton/prep"
+    env_file: ".env"
+
+  home:
+    container_name: "home"
+    depends_on:
+      prep:
+        condition: "service_completed_successfully"
+      db:
+        condition: "service_started"
+    restart: "always"
+    image: "hackbinghamton/home"
+    env_file: ".env"
+    init: true
+
+  nginx:
+    container_name: "nginx"
+    image: nginx:1.25.3-alpine
+    depends_on:
+      - home
+      - dbadmin
+    restart: "always"
+    volumes:
+      - type: "bind"
+        source: "./nginx.conf"
+        target: "/etc/nginx/nginx.conf"
+        read_only: true
+      - type: "bind"
+        source: "/etc/letsencrypt"
+        target: "/etc/letsencrypt"
+        read_only: true
+    ports:
+      - 443:443
+
+volumes:
+  db_data:
