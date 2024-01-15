@@ -1,0 +1,21 @@
+#!/bin/sh -eu
+
+readonly SADM=/opt/sadm
+readonly SSH_USER=ubuntu
+
+if [ "$(id -u)" -ne 0 ]; then
+	echo >&2 "[SADM] This script must be ran as root."
+	exit 1
+fi
+
+echo "[SADM] Installing packages."
+apt-get --assume-yes install docker docker-compose certbot
+
+echo "[SADM] Setting timezone."
+timedatectl set-timezone America/New_York
+
+echo "[SADM] Configuring Docker."
+cp "$SADM"/docker-daemon.json /etc/docker/daemon.json
+
+echo "[SADM] Adding user to Docker group."
+usermod -aG docker "$SSH_USER"
